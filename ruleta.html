@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RULETA DE FIELES VÍA</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    #wheel {
+      width: 700px;
+      height: 700px;
+      border: 10px solid #333;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+    }
+    .slice {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      background: #f2f2f2;
+      transform-origin: 100% 100%;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 5px;
+      font-size: 10px;
+      font-weight: bold;
+      color: #000;
+      word-break: break-word;
+      text-align: right;
+    }
+    #participantsList {
+      width: 350px;
+      height: 700px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    #participantsList ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    #participantsList li {
+      padding: 4px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .removeBtn {
+      background: red;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 2px 5px;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+    #controls {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #winner {
+      margin-top: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      color: green;
+    }
+    #spinBtn, #addParticipantBtn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    h1 {
+      text-align: center;
+      font-size: 60px;
+    }
+    #addParticipantForm {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #participantName {
+      padding: 8px;
+      font-size: 18px;
+      width: 400px;
+    }
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    #bulkAddBtn {
+      margin-left: 10px;
+      padding: 10px 20px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    textarea {
+      width: 90%;
+      height: 100px;
+      font-size: 16px;
+      margin-top: 10px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #bigWinner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 50px;
+      font-weight: bold;
+      color: rgb(0, 0, 0);
+      z-index: 10000;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<h1>RULETA DE FIELES VÍA</h1>
+<div class="container">
+  <div id="wheel"></div>
+  <div id="participantsList">
+    <h3>Participantes</h3>
+    <ul id="list"></ul>
+  </div>
+</div>
+
+<div id="addParticipantForm">
+  <input type="text" id="participantName" placeholder="Nombre del participante">
+  <button id="addParticipantBtn">Agregar</button>
+  <br>
+  <textarea id="bulkParticipants" placeholder="Pega varios participantes separados por salto de línea..."></textarea>
+  <button id="bulkAddBtn">Agregar Varios</button>
+</div>
+
+<div id="controls">
+  <button id="spinBtn">SORTEAR UN GANADOR</button>
+  <div id="winner"></div>
+  <!-- Botón para seleccionar al tercer ganador -->
+  <button id="selectThirdWinnerBtn">Seleccionar tercer ganador</button>
+</div>
+
+
+<!-- Este es el div para mostrar el nombre grande del ganador -->
+<div id="bigWinner"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+<script>
+let participants = [];
+let winners = [];
+
+const list = document.getElementById('list');
+const wheel = document.getElementById('wheel');
+const spinBtn = document.getElementById('spinBtn');
+const winnerDiv = document.getElementById('winner');
+const bigWinnerDiv = document.getElementById('bigWinner');
+const addParticipantBtn = document.getElementById('addParticipantBtn');
+const participantNameInput = document.getElementById('participantName');
+const bulkParticipantsInput = document.getElementById('bulkParticipants');
+const bulkAddBtn = document.getElementById('bulkAddBtn');
+
+function actualizarLista() {
+  list.innerHTML = '';
+  participants.forEach((participant, index) => {
+    const li = document.createElement('li');
+    li.innerHTML = `${participant} <button class="removeBtn" onclick="eliminarParticipante(${index})">X</button>`;
+    list.appendChild(li);
+  });
+  crearSlices();
+}
+
+function eliminarParticipante(index) {
+  participants.splice(index, 1);
+  actualizarLista();
+}
+
+function crearSlices() {
+  wheel.innerHTML = '';
+  const total = participants.length;
+  for (let i = 0; i < total; i++) {
+    const slice = document.createElement('div');
+    slice.className = 'slice';
+    const angle = (360 / total) * i;
+    slice.style.transform = `rotate(${angle}deg) skewY(-${90 - 360/total}deg)`;
+    slice.style.background = i % 2 === 0 ? '#4CAF50' : '#FFC107';
+    slice.textContent = participants[i];
+    wheel.appendChild(slice);
+  }
+}
+
+addParticipantBtn.addEventListener('click', () => {
+  const name = participantNameInput.value.trim();
+  if (name) {
+    participants.push(name);
+    participantNameInput.value = '';
+    actualizarLista();
+  }
+});
+
+bulkAddBtn.addEventListener('click', () => {
+  const names = bulkParticipantsInput.value.trim().split('\n').map(name => name.trim()).filter(name => name);
+  if (names.length > 0) {
+    participants.push(...names);
+    bulkParticipantsInput.value = '';
+    actualizarLista();
+  }
+});
+
+spinBtn.addEventListener('click', async () => {
+  if (participants.length === 0) {
+    alert('No hay participantes suficientes.');
+    return;
+  }
+
+  const randomIndex = Math.floor(Math.random() * participants.length);
+  const winner = participants[randomIndex];
+
+  const degreesPerSlice = 360 / participants.length;
+  const rotation = (360 * 5) + (360 - randomIndex * degreesPerSlice);
+
+  wheel.style.transition = 'transform 4s ease-out';
+  wheel.style.transform = `rotate(${rotation}deg)`;
+
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  winners.push(winner);
+  participants.splice(randomIndex, 1);
+  actualizarLista();
+
+  confetti({
+    particleCount: 150,
+    spread: 90,
+    origin: { y: 0.6 }
+  });
+
+  winnerDiv.innerHTML = `Ganador: 🎉 ${winner} 🎉`;
+  bigWinnerDiv.innerHTML = `🎉 ${winner} 🎉`;
+  bigWinnerDiv.style.display = 'block';
+
+  setTimeout(() => {
+    bigWinnerDiv.style.display = 'none';
+  }, 5000); // Oculta el nombre después de 5 segundos
+});
+
+selectThirdWinnerBtn.addEventListener('click', () => {
+  const thirdWinner = prompt("37.	Isabella Sanchez:");
+  if (thirdWinner) {
+    winners.push(thirdWinner);
+    actualizarLista();
+    winnerDiv.innerHTML = `Tercer Ganador: 🎉 ${thirdWinner} 🎉`;
+    bigWinnerDiv.innerHTML = `🎉 ${thirdWinner} 🎉`;
+    bigWinnerDiv.style.display = 'block';
+
+    setTimeout(() => {
+      bigWinnerDiv.style.display = 'none';
+    }, 5000);
+  }
+});
+</script>
+
+</body>
+</html>
